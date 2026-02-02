@@ -1,0 +1,79 @@
+#Appendix F: Bayesian adjustment for differential exposure misclassification (R code)
+
+####################################################
+#Bayesian differential exposure misclassification
+#recall bias adjustment
+#two-by-two table
+####################################################
+#by Igor Burstyn with some code borrowed from Paul Gustafson
+#November 2024
+
+install.packages(c("rje","rjags","MCMCvis")) #do only ONCE for a R installation, not every time you open R
+
+#load required R packages every time you open R
+require("rje")
+require("rjags")
+require("MCMCvis")
+
+set.seed(31415926) #fix random number seed to aid reproducibility
+
+#A JAGS model.
+#lor ~ dnorm(0,0.25) #prior on log-OR vague and null-centered approx (N(mu=0,var=4)) => 95% range 0.02 to 50
+			   ##Greenland's choice for data augmentation and control for  sparse data bias
+#lor ~ dnorm(0,4/3)  #prior on log-OR vague and null-centered approx (N(mu=0,var=3/4)) => 95% range 0.1 to 10
+			   #Hamra et al. 2013
+genmod.string <- "model{
+#data
+x0 ~ dbin(p0, n0)
+x1 ~ dbin(p1, n1)
+#model
+p0 <- r0*SN0 + (1-r0)*(1-SP0)
+p1 <- r1*SN1 + (1-r1)*(1-SP1)
+r1 <- (OR*r0)/(1-r0+OR*r0)
+#priors
+r0  ~ dbeta(aa,bb) #can make informative as per prior elucidation but flat initially as beta(1,1)
+lor ~ dnorm(0,0.25) #prior on log-OR vague and null-centered approx (N(mu=0,var=4)) => 95% range 0.02 to 50
+#misclassification among referents
+SN0 ~ dbeta(a.sn0, b.sn0)
+SP0 ~ dbeta(a.sp0, b.sp0)
+#misclassification among cases
+SN1 ~ dbeta(a.sn1, b.sn1)
+SP1 ~ dbeta(a.sp1, b.sp1)
+#calculations of parameters of interest
+OR <- exp(lor)
+ }"
+
+
+#in data, specify two-by-two table
+#x0 and x1 are numbers of exposed referents and cases, respectively
+#n0 and n1 are numbers of referents and cases, respectively
+##data are from Hoppin et al as determined during 11/8/2024 workshop
+# a* and b* are the shapes 1 and 2 of Beta distributions
+##fixed at values elicited during prior elucidation workshop 11/8/2024
+##See Appendix B for derivation of parameters of priors on misclassification parameters
+
+mod <- jags.model(textConnection(genmod.string),
+data=list(x0=2700, x1=103, n0=19263, n1=441, 
+a.sn0=12.53, b.sn0=4.843333, 
+a.sp0= 18.961, b.sp0=4.378802, 
+a.sn1=17.486, b.sn1=8.065429, 
+a.sp1=118.736, b.sp1=49.47953, 
+aa=1, bb=1),
+n.chains=3)
+
+update(mod, 10000)   #burn-in
+
+opt.JAGS <- coda.samples(mod, n.iter=100000,
+              variable.names=c("SN0","SP0", "SN1", "SP1", "OR", "lor", "r0", "r1"))
+
+#What comes out: samples from posterior distributions: true values given data, model, and priors
+
+MCMCsummary(opt.JAGS)
+MCMCtrace(opt.JAGS, params=c("OR", "lor"), pdf=F)
+MCMCtrace(opt.JAGS, params=c("SN0", "SN1"), pdf=F)
+MCMCtrace(opt.JAGS, params=c("SP0", "SP1"), pdf=F)
+MCMCtrace(opt.JAGS, params=c("r0", "r1"), pdf=F)
+
+#save CODA to process
+#raw.MCMC <- MCMCchains(opt.JAGS)
+
