@@ -1,0 +1,92 @@
+#Appendix E: Probabilistic sensitivity analysis for differential exposure misclassification (R code)
+
+#adjust for recall bias in Hoppin et al. using probabilistic bias analysis
+
+################################################################################
+##"A HPEE was determined based on the response to the question ‘'Have you
+##ever had an incident or experience while using any type of
+##pesticide which caused you unusually high personal exposure?’'" 
+##(Hoppin et al., 2009)
+################################################################################
+
+######Lash, Fox, et al.
+install.packages("episensr") #do only once to install library that has function probsens()
+library(episensr)# do every time you call function
+set.seed(31415926) # make reproducible
+
+####################################
+#contingency table 
+####################################
+table<-matrix(c(103,338,2700,16563), 
+dimnames=list(c("case","control"),c("exposed","unexposed")),nrow=2,byrow=TRUE)
+table
+
+##########to inform bounds on specificity
+#prevelence of exposure among cases
+103/(103+338)
+prop.test(103,103+338,correct=FALSE)
+#prevelence of exposure among controls
+2700/(2700+16563)
+prop.test(2700,2700+16563,correct=FALSE)
+
+
+##################################################################
+#OBTAINED OBJECTS WITH PARAMETERS OF PRIORS FROM RUNNING CODE IN APPENDIX B
+##################################################################
+
+
+################################################################################
+#beta priors on SN and SP
+################################################################################
+
+probsens(table,
+type = "exposure",
+reps = 10000000,
+
+#sensitivities
+  #cases
+seca.parms = list("beta", c(priorSN.case$shape1, priorSN.case$shape2)),
+ #controls
+seexp.parms = list("beta", c(priorSN$shape1, priorSN$shape2)),
+
+#specificities
+ #cases
+spca.parms = list("beta", c(priorSP.case$shape1, priorSP.case$shape2)),
+ #controls
+spexp.parms = list("beta", c(priorSP$shape1, priorSP$shape2)),
+corr.se=.1, corr.sp=.1)
+
+
+################################################################################
+#triangular priors on SN and SP -- TABLE 2
+# added ".corrected" on Jan 29, 2025
+################################################################################
+
+probsens(table,
+type = "exposure",
+reps = 1000000,
+seca.parms=list("triangular", c(mean.low.SN,  1, mean.mode.SN.cases.corrected)), 
+seexp.parms=list("triangular",c(mean.low.SN,  1, mean.mode.SN)), 
+spca.parms=list("triangular",  c(mean.low.SP, 1, mean.mode.SP.cases.corrected)), 
+spexp.parms=list("triangular", c(mean.low.SP, 1, mean.mode.SP)), 
+corr.se=.8, corr.sp=.8)
+
+probsens(table,
+type = "exposure",
+reps = 1000000,
+seca.parms=list("triangular", c(mean.low.SN,  1, mean.mode.SN.cases.corrected)), 
+seexp.parms=list("triangular",c(mean.low.SN,  1, mean.mode.SN)), 
+spca.parms=list("triangular",  c(mean.low.SP, 1, mean.mode.SP.cases.corrected)), 
+spexp.parms=list("triangular", c(mean.low.SP, 1, mean.mode.SP)), 
+corr.se=.4, corr.sp=.4)
+
+probsens(table,
+type = "exposure",
+reps = 1000000,
+seca.parms=list("triangular", c(mean.low.SN,  1, mean.mode.SN.cases.corrected)), 
+seexp.parms=list("triangular",c(mean.low.SN,  1, mean.mode.SN)), 
+spca.parms=list("triangular",  c(mean.low.SP, 1, mean.mode.SP.cases.corrected)), 
+spexp.parms=list("triangular", c(mean.low.SP, 1, mean.mode.SP)), 
+corr.se=.1, corr.sp=.1)
+
+
