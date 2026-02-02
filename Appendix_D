@@ -1,0 +1,110 @@
+APPENDIX D: Setting parameters of Beta-priors on misclassification parameters from prior elicitation questions
+
+###Set beta prior based on 2 percentiles
+install.packages("epiR") #run only once
+require(epiR) # run every time
+
+## EXAMPLE:
+## If a scientist is asked for their best guess for the sensitivity
+## of a particular test and the answer is 0.60, and if they are also willing 
+## to assert that they are 97.5% certain that the sensitivity is greater than 
+## 0.3, what are the shape1 and shape2 parameters for a beta distribution
+## satisfying these constraints? 
+
+tmp <- epi.betabuster(mode = 0.60, conf = 0.975, imsure = "greater than", 
+   x = 0.3, conf.level = 0.95, max.shape1 = 100, step = 0.001)
+tmp
+plot(density(rbeta(10000, tmp$shape1, tmp$shape2)))
+
+#####################################################################
+#mode SN estimates from the workshop
+mode.SN=c(.6,.85,.75,.8,.9,.7,.8,.9,.6,.6, .8, .7)
+mean.mode.SN=mean(mode.SN)
+mean.mode.SN
+
+#2.5%-ile SN estimates from the workshop
+low.SN=c(.4,.6,.5,.6,.8,.1,.75,.6,.3, .3, .4, .6)
+mean.low.SN=mean(low.SN)
+mean.low.SN
+
+########################
+priorSN <- epi.betabuster(mode = mean.mode.SN, conf = 0.975, imsure = "greater than", 
+   x = mean.low.SN, conf.level = 0.95, max.shape1 = 100, step = 0.001)
+priorSN
+
+#####################################################################
+#mode SP estimates from the workshop
+mode.SP=c(.95,.9,.85,.9,.8,.8,.9,.85,.8, .8, .7, .85)
+mean.mode.SP=mean(mode.SP)
+mean.mode.SP
+
+#2.5%-ile SP estimates from the workshop
+low.SP=c(.85,.7,.6,.8,.1,.2,.87,.7,.7, .5, .8, .8)
+mean.low.SP=mean(low.SP)
+mean.low.SP
+
+########################
+priorSP <- epi.betabuster(mode = mean.mode.SP, conf = 0.975, imsure = "greater than", 
+   x = mean.low.SP, conf.level = 0.95, max.shape1 = 100, step = 0.001)
+priorSP
+
+########################
+#vizualize
+par(mfrow=c(1,2))
+hist(rbeta(10000, priorSN$shape1,  priorSN$shape2), main="sensitivity") 
+hist(rbeta(10000, priorSP$shape1,  priorSP$shape2), main="specificity") 
+plot(mode.SN, mode.SP-mode.SN)
+#######################
+
+###############################################################
+###############################################################
+#recall bias
+#adjust expected value of SN and/or SP of cases
+###############################################################
+###############################################################
+#enter in the same order as for other parameters to preserve pairwise adjustment
+#####make a data frame in the future?
+###############################################################
+
+d.SN=c(0, 0,0,0,0,.5,.2,0,0, 0, 0, 0) #difference in SN in cases relative to non-cases
+mean.mode.SN.cases=mean(mode.SN-d.SN)
+mean.mode.SN.cases
+
+#added Jan 2025 to correct a logical error of mean<2.5%ile: START
+hist(mode.SN-d.SN-low.SN)
+check.SN=c(mode.SN-d.SN-low.SN)
+mean.mode.SN.cases.corrected=mean(mode.SN[check.SN>0]-d.SN[check.SN>0])
+mean.mode.SN.cases.corrected
+#added Jan 2025 to correct a logical error of mean<2.5%ile: STOP
+
+d.SP=c(.05, .1,.1,.2,.05,.5,.10,.15,.05,.3, .2, .05) #difference in SP in cases relative to non-cases
+mean.mode.SP.cases=mean(mode.SP-d.SP)
+
+#added Jan 2025 to correct a logical error of mean<2.5%ile: START
+hist(mode.SP-d.SP-low.SP)
+check.SP=c(mode.SP-d.SP-low.SP)
+mean.mode.SP.cases.corrected=mean(mode.SP[check.SP>0]-d.SP[check.SP>0])
+mean.mode.SP.cases.corrected
+#added Jan 2025 to correct a logical error of mean<2.5%ile: STOP
+
+#use ".corrected" values for priors of cases
+priorSN.case <- epi.betabuster(mode = mean.mode.SN.cases.corrected, conf = 0.975, imsure = "greater than", 
+   x = mean.low.SN, conf.level = 0.95, max.shape1 = 100, step = 0.001)
+priorSN.case
+
+priorSP.case <- epi.betabuster(mode = mean.mode.SP.cases.corrected, conf = 0.975, imsure = "greater than", 
+   x = mean.low.SP, conf.level = 0.95, max.shape1 = 10000, step = 0.001)
+priorSP.case
+
+########################
+#vizualize: differential misclassification: simulated kernel densities
+par(mfrow=c(2,2))
+plot(density(rbeta(10000, priorSN.case$shape1,  priorSN.case$shape2)), main="sensitivity: cases", col="blue") 
+plot(density(rbeta(10000, priorSN$shape1,       priorSN$shape2)),      main="sensitivity: referents", col="red") 
+plot(density(rbeta(10000, priorSP.case$shape1,  priorSP.case$shape2)), main="specificity: cases", col="blue") 
+plot(density(rbeta(10000, priorSP$shape1,       priorSP$shape2)),      main="specificity: referents", col="red") 
+#######################
+
+
+
+
